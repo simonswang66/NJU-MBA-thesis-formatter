@@ -6,18 +6,25 @@
 
 ## 30 秒开始
 
-把下面这段话直接发给有 shell 权限的 AI Agent（Claude Code / Codex / Cursor 等）：
+**方式一 · 一条命令**（已装 git）：
+
+```bash
+git clone https://github.com/simonswang66/NJU-MBA-thesis-formatter.git ~/.claude/skills/NJU-MBA-thesis-formatter
+```
+
+Codex 换 `~/.codex/skills/`；WorkBuddy 换 `~/.workbuddy/skills/` 并重启生效。
+
+**方式二 · 把这段话直接发给有 shell 权限的 AI Agent**（Claude Code / Codex / Cursor 等）：
 
 ```text
-帮我安装 NJU-MBA-thesis-formatter 这个 skill。请按下面步骤做：
-1. 按你所在的平台选择安装目录：Claude Code → ~/.claude/skills/
-   （Windows 为 %USERPROFILE%\.claude\skills\）；WorkBuddy → ~/.workbuddy/skills/
-   （Windows 为 %USERPROFILE%\.workbuddy\skills\，装完需重启 WorkBuddy）；
-   Codex → ~/.codex/skills/；没有 skills 机制的平台跳过复制，记下原目录路径即可
-2. 把 NJU-MBA-thesis-formatter 文件夹整体复制到安装目录下
-3. 验证：NJU-MBA-thesis-formatter/ 下应看到 SKILL.md、scripts/、assets/、references/
-4. 安装依赖：pip3 install python-docx lxml defusedxml
-5. 告诉我安装好了
+帮我安装 NJU-MBA-thesis-formatter 这个 skill，请按下面步骤做：
+1. 克隆 https://github.com/simonswang66/NJU-MBA-thesis-formatter 到你所在平台的
+   skills 目录：Claude Code → ~/.claude/skills/（Windows 为 %USERPROFILE%\.claude\skills\）；
+   WorkBuddy → ~/.workbuddy/skills/（Windows 同理，装完需重启 WorkBuddy）；
+   Codex → ~/.codex/skills/；没有 skills 机制的平台就克隆到任意位置并记下路径
+2. 验证：目录下应看到 SKILL.md、scripts/、assets/、references/
+3. 安装依赖：pip3 install python-docx lxml defusedxml
+4. 告诉我安装好了
 ```
 
 平台没有 skills 机制也可以零安装使用——直接把这句话发给 Agent（替换为实际路径）：
