@@ -110,7 +110,7 @@ insert_footnotes(input_docx, output_docx, footnotes, positions)
 
 ## 核心格式规范
 
-详细规范见 `references/format-spec.md`。关键规则：
+详细规范见 `references/`：`format-spec.md` 速查表，及学院《南京大学商学院MBA学位论文写作要求与规范》原文 PDF。关键规则：
 
 - **章标题**：黑体 16pt 加粗居中，段前 24pt 段后 18pt，每章另起一页
 - **一级节**：黑体 14pt 顶左，段前 24pt 段后 6pt
