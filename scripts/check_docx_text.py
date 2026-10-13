@@ -87,6 +87,12 @@ def docx_unit_items(replacer: SectionReplacer, unit: dict,
                 # 公式段（OMML）：与 md 侧 display_math 同键（"公式存在＋编号文本"）
                 items.append(("p", "math|" + norm(p.text)))
                 continue
+            m_eq = re.match(r"^\[Equation: .*\](?: \(([^()]*)\))?$", p.text)
+            if m_eq:
+                # pandoc 缺失时的兜底文本段：同构 "math|编号" 键
+                items.append(("p", "math|" + norm(
+                    f"({m_eq.group(1)})" if m_eq.group(1) else "")))
+                continue
             txt = norm(p.text)
             if txt:
                 items.append(("p", txt))

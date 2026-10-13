@@ -7,7 +7,7 @@
   第1章起阿拉伯页码重新计 1；页眉＝单元标题；
 - 目录为 Word TOC 域（\\o "1-3" \\h \\z \\u），章/一级节/二级节样式写入
   outlineLvl（同时惠及导航窗格）；摘要/Abstract/目录标题用克隆样式
-  「MBA论文前置标题」（无 outline，不进目录）；
+  「MBA论文前置标题」（写 9 级＝正文文本，不进目录）；
 - 章、节、图表题一律**照排原文**（md 已带"第N章"/"图X.Y"/"表X.Y"编号，
   不再自动编号）。
 
@@ -45,8 +45,8 @@ STYLE = {    "chapter": "MBA论文章标题",
     "tab_caption": "MBA表标题",
     "note": "MBA论文图表文字",
     "reference": "MBA论文参考文献",
-    "front_title": "MBA论文前置标题",   # 由章标题克隆（无 outline），摘要/Abstract/目录用
-    "appendix_h1": "MBA论文附录节标题",  # 由一级节标题克隆（无 outline），附录 A.1/B.1 等用（2026-10-06 裁定：附录小节不进大纲/目录）
+    "front_title": "MBA论文前置标题",   # 由章标题克隆（写 9 级＝正文文本），摘要/Abstract/目录用
+    "appendix_h1": "MBA论文附录节标题",  # 由一级节标题克隆（写 9 级），附录 A.1/B.1 等用（2026-10-06 裁定：附录小节不进大纲/目录）
     "table": "MBA论文表格",             # 表样式（可选，存在则套用）
 }
 
@@ -271,7 +271,7 @@ class Thesis23EEngine(FormatEngine):
         from docx.enum.text import WD_TAB_ALIGNMENT
         ommls = self._latex_to_omml(latex, display=True)
         if not ommls:
-            self.add_body(f"[Equation: {latex}]")
+            self.add_body(f"[Equation: {latex}]" + (f" ({eq_num})" if eq_num else ""))
             return
         para = self.doc.add_paragraph(style=STYLE["body"])
         para.paragraph_format.first_line_indent = Pt(0)

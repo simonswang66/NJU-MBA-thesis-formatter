@@ -340,6 +340,10 @@ class FormatEngine:
             result = []
             for el in body.iter():
                 if el.tag.endswith('}oMath') and el.tag.startswith('{http://schemas.openxmlformats.org/officeDocument/2006/math'):
+                    # oMathPara 内嵌的 oMath 随外层一并收录，跳过以防公式双重渲染
+                    parent = el.getparent()
+                    if parent is not None and parent.tag.endswith('}oMathPara'):
+                        continue
                     result.append(el)
                 elif el.tag.endswith('}oMathPara'):
                     result.append(el)

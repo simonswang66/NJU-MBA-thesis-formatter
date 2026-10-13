@@ -424,6 +424,16 @@ class SectionReplacer:
                     it["sect_break"] = True
                 items.append(it)
                 continue
+            m_eq = re.match(r"^\[Equation: .*\](?: \(([^()]*)\))?$", text)
+            if m_eq:
+                # pandoc 缺失时引擎落回 [Equation: …] 文本，同构 "math|编号" 键配对
+                it = {"kind": "p",
+                      "key": "math|" + norm(f"({m_eq.group(1)})" if m_eq.group(1) else ""),
+                      "el": el}
+                if has_sect:
+                    it["sect_break"] = True
+                items.append(it)
+                continue
             if not text.strip():
                 if has_sect:
                     continue                     # 空节界段：结构保留

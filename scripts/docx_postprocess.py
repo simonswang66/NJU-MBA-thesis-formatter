@@ -314,6 +314,32 @@ def fix_layout_styles_doc(doc) -> list[str]:
                 _pPr.append(_ol)
             _ol.set(qn("w:val"), "9")  # 只删元素挡不住 basedOn heading 2 的 1 级继承
         doc.styles.element.append(new_el)
+
+    # 幂等修复（2026-10-13）：样式已存在的旧文档（独立 --fix-styles）也确保写 9 级——
+    # 历史克隆未写级别时，basedOn 继承会把前置标题/附录小节拉回目录
+    for _name in ("MBA论文附录节标题", "MBA论文前置标题"):
+        if _name not in {s.name for s in doc.styles}:
+            continue
+        _pPr = doc.styles[_name].element.get_or_add_pPr()
+        _ol = _pPr.find(qn("w:outlineLvl"))
+        _changed = False
+        if _ol is None:
+            _changed = True
+            _ol = OxmlElement("w:outlineLvl")
+            _anchor = None
+            for _tag in ("w:divId", "w:cnfStyle", "w:rPr", "w:sectPr", "w:pPrChange"):
+                _anchor = _pPr.find(qn(_tag))
+                if _anchor is not None:
+                    break
+            if _anchor is not None:
+                _anchor.addprevious(_ol)
+            else:
+                _pPr.append(_ol)
+        if _ol.get(qn("w:val")) != "9":
+            _ol.set(qn("w:val"), "9")
+            _changed = True
+        if _changed:
+            fixes.append(f"样式 {_name} 补写大纲 9 级（正文文本，不进目录）")
     if "MBA论文附录节标题" in {s.name for s in doc.styles}:
         n_app = 0
         for para in doc.paragraphs:
