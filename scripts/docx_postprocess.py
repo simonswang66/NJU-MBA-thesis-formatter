@@ -257,15 +257,9 @@ def fix_layout_styles_doc(doc) -> list[str]:
             pPr.append(ind)
         fixes.append(f"样式 {name} 归一（10.5pt、两端对齐、左缩进2字符＋悬挂2字符、单倍行距、段前后0）")
 
-    try:
-        ref = doc.styles["MBA论文参考文献"]
-        pPr = ref.element.find(qn("w:pPr"))
-        numPr = pPr.find(qn("w:numPr")) if pPr is not None else None
-        if numPr is not None:
-            pPr.remove(numPr)
-            fixes.append("参考文献样式去除自动编号（numPr）")
-    except KeyError:
-        pass
+    # 参考文献样式自动编号（numPr）保留（2026-10-13 起）：序号改由样式的 [%1] 自动
+    # 编号承担，引擎渲染时剥除 md 行首「[n]」字面序号；旧的「去 numPr」修复会洗掉
+    # 用户在 Word 中设置的自动编号，已移除
 
     # 表格样式去底色（2026-10-06 用户裁定：第一行不要绿底；样式基线＝全表无底色）：
     # 模板「MBA论文表格」firstRow 带绿底 008000、band1Horz 带白底——全部剥除；
@@ -459,7 +453,7 @@ def main():
     g.add_argument("--stamp", action="store_true", help="作者改写为系统用户")
     g.add_argument("--purge", action="store_true", help="清理未引用媒体")
     g.add_argument("--fix-styles", action="store_true",
-                   help="版式归一：图表题/注样式＋文献去自动编号＋页眉下边框（自动备份）")
+                   help="版式归一：图表题/注样式＋页眉下边框（自动备份）")
     g.add_argument("--fix-seps", action="store_true",
                    help="编号-标题间半角空格改全角（标题/题注/页眉；自动备份）")
     g.add_argument("--all", action="store_true", help="purge＋stamp")

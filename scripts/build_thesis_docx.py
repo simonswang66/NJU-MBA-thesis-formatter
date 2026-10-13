@@ -41,7 +41,7 @@ def build(md_path: str, template_path: str, output_path: str,
         if unit["id"] == "abstract_en":
             engine.add_toc_unit()   # 目录位置：Abstract 之后、正文之前
 
-    # 版式样式归一（图表题/注、文献去自动编号、页眉下边框），作用于样式层
+    # 版式样式归一（图表题/注、页眉下边框），作用于样式层
     from docx_postprocess import fix_layout_styles_doc, purge_unreferenced_media, stamp_author
     fix_layout_styles_doc(engine.doc)
 

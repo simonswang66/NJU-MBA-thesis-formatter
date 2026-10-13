@@ -50,7 +50,7 @@ python3 scripts/build_thesis_docx.py <合并稿.md> \
 - **段落级增量更新** `scripts/section_replacer.py`（默认最小变更集）：只重建变化/新增/删除的段落，未变段落（含 run 级格式与手工精调）逐字节保留；结构变化（横排表集合变化）自动回退整单元重建，`--full-unit` 可强制；图片尺寸与对齐在换图/重建时自动继承旧版式（`wp:extent`＋`a:ext` 双写），新增图片默认 5.5 英寸居中；公式段按「公式存在＋编号」配对（改进公式内容本身请用 `--full-unit`）；变更前自动时间戳备份入 docx 同目录 `bak/`（`--no-backup` 可关；无变化不写盘）。详见该文件 docstring
 - **文本一致性核查 `scripts/check_docx_text.py`**：`check_docx_text.py <docx> <合并稿.md>` 逐单元比对 docx 与合并稿文本（内容级归一：全角/半角、中英文间空格、`<br>`/换行、合并单元格免疫），冻结表差异单列
 - **版式配置 `.docx-layout.json`**（放 docx 同目录）：`frozen`＝用户手工定版禁止重渲染的表（replacer 按题注锚点原样回置）；`landscape`＝横排宽表题注前缀（引擎渲染到该表自动开/收横排节，题注+表+注在横排节内）
-- **后处理 `scripts/docx_postprocess.py`**（装配与增量更新末尾自动执行）：①作者元数据（dc:creator／cp:lastModifiedBy）改写为系统用户——python-docx 默认模板写 "python-docx"、模板可能残留原作者，产物每次生成/编辑后都必须过一遍；②清理 word/media 中未被引用的图片（模板残留、增量替换废弃图），校验范围含页眉页脚等全部 XML part，不会误删在引图；③`--fix-styles` 版式归一（样式层，不动内容）：图表题/注样式统一加粗居中 10.5pt、参考文献样式去自动编号（numPr 与 md 自带 [N] 叠加会序号重复）、各节页眉加 0.75pt 下边框——23E 模板（WPS 存盘）样式缺规格且带自动编号，装配时由 `fix_layout_styles_doc` 自动归一
+- **后处理 `scripts/docx_postprocess.py`**（装配与增量更新末尾自动执行）：①作者元数据（dc:creator／cp:lastModifiedBy）改写为系统用户——python-docx 默认模板写 "python-docx"、模板可能残留原作者，产物每次生成/编辑后都必须过一遍；②清理 word/media 中未被引用的图片（模板残留、增量替换废弃图），校验范围含页眉页脚等全部 XML part，不会误删在引图；③`--fix-styles` 版式归一（样式层，不动内容）：图表题/注样式统一加粗居中 10.5pt、各节页眉加 0.75pt 下边框——23E 模板（WPS 存盘）图表题样式缺规格，装配时由 `fix_layout_styles_doc` 自动归一；**参考文献序号由样式的自动编号（`[%1]`）承担**（2026-10-13 起保留样式 numPr，引擎渲染时剥除 md 行首「[n]」字面序号）
 
 ## 输入方式
 
@@ -117,7 +117,7 @@ insert_footnotes(input_docx, output_docx, footnotes, positions)
 - **一级节**：黑体 14pt 顶左，段前 24pt 段后 6pt
 - **二级节**：黑体 13pt 左缩 2 字，段前 12pt 段后 6pt
 - **正文**：宋体/Times New Roman 12pt，两端对齐，首行缩进 2 字，行距 20pt
-- **参考文献**：小四宋体/Times New Roman，行距最小 20 磅，编号 [N] 为正文文本（样式不含自动编号，避免与 [N] 叠加）
+- **参考文献**：小四宋体/Times New Roman，行距最小 20 磅，编号 [N] 为样式的自动编号（`[%1]`）；md 行首的「[n]」字面序号由引擎渲染时剥除，勿手工输入
 - **图表**：宋体 10.5pt 加粗居中，三线表
 - **页下注**：①②③ 连续编号
 - **编号规则**：图/表分章连续编号（图1.1、表2.2）

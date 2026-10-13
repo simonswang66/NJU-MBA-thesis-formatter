@@ -67,7 +67,7 @@ _VML_IMAGEDATA = "{urn:schemas-microsoft-com:vml}imagedata"
 
 def norm(s: str) -> str:
     """内容级归一化（两侧同施）：NFKC、去 md 粗体、<br>→空格、空白折叠、
-    非 ASCII 字符邻接空格抹除、去行首列表符。
+    非 ASCII 字符邻接空格抹除、去行首列表符（「• 」与参考文献「[n] 」字面序号）。
     check_docx_text 从本模块导入本函数——核查与差分同一口径，改则两处同步失效。"""
     s = unicodedata.normalize("NFKC", s)
     s = s.replace("**", "")
@@ -77,6 +77,7 @@ def norm(s: str) -> str:
     s = re.sub(r"\s+(?=[^\x00-\x7f])", "", s)
     s = re.sub(r"(?<=[^\x00-\x7f])\s+", "", s)
     s = re.sub(r"^•\s*", "", s)
+    s = re.sub(r"^\[\d+\]\s*", "", s)       # 参考文献行首字面序号（序号由样式自动编号承担）
     return s.strip()
 
 

@@ -330,9 +330,9 @@ class Thesis23EEngine(FormatEngine):
         return para
 
     def _add_reference_entry(self, text: str):
-        """参考文献条目照排（编号 [N] 由文献表自带，不重排）。
-        字体版式全由「MBA论文参考文献」样式承担，不写 run 级格式
-        （与成品 docx 现状一致；写 run 级会与样式定义打架）。"""
+        """参考文献条目照排；行首「[n] 」字面序号剥除——序号由「MBA论文参考文献」
+        样式的自动编号（[%1]）承担；字体版式同样全由样式承担，不写 run 级格式。"""
+        text = re.sub(r'^\[\d+\]\s*', '', text)
         para = self.doc.add_paragraph(style=STYLE["reference"])
         para.add_run(text)
         return para
