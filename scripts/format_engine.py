@@ -128,13 +128,13 @@ def _add_page_number(paragraph, fmt: str = "ARABIC"):
 
 def _set_header_footer(section, text: str, page_num_fmt: str = "ARABIC"):
     """Configure header (centered section title) and footer (centered page number)."""
-    # Header
+    # Header（标题内的 <br> 断行标记不进页眉）
     header = section.header
     header.is_linked_to_previous = False
     hp = header.paragraphs[0] if header.paragraphs else header.add_paragraph()
     hp.alignment = WD_ALIGN_PARAGRAPH.CENTER
     hp.paragraph_format.line_spacing = LINE_SPACING_SINGLE
-    run = hp.add_run(text)
+    run = hp.add_run(text.replace("<br>", ""))
     _set_font(run, FONT_HEADER_FOOTER, FONT_BODY_EN, SIZE_HEADER_FOOTER)
 
     # Footer - page number

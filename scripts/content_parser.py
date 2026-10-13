@@ -299,7 +299,7 @@ _UNIT_KIND = {
 
 # 图表题：整段粗体（**图1.1 …**），附表题可带段尾非粗体说明（**附表A.1 …**（请…））
 _CAPTION_RE = re.compile(r"^\*\*((?:附表|图|表)[\dA-Z].*?)\*\*(.*)$")
-_SOURCE_NOTE_RE = re.compile(r"^(?:资料来源|数据来源)：")
+_SOURCE_NOTE_RE = re.compile(r"^(?:资料来源|数据来源|表注|图注|注)：")
 _KEYWORDS_CN_RE = re.compile(r"^\*\*关键词：\*\*\s*(.+)$")
 _KEYWORDS_EN_RE = re.compile(r"^\*\*Key ?Words?:?\*\*:?\s*(.+)$", re.IGNORECASE)
 

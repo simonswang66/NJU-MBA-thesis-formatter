@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""docx 后处理：作者元数据改写＋未引用媒体清理。
+"""docx 后处理（2026-10-06 装配工作流·能力层）：作者元数据改写＋未引用媒体清理。
 
-两个职责：
+两个职责（2026-10-06 用户裁定）：
 1. **stamp_author**：把 docx 作者元数据（dc:creator／cp:lastModifiedBy）改写为
    系统用户（getpass.getuser()）——formatter 产物每次生成/编辑后都必须过一遍。
-   源起：python-docx 默认模板写入 "python-docx"；外来模板可能残留原作者信息。
+   源起：python-docx 默认模板写入 "python-docx"；23E 模板残留原作者元数据。
 2. **purge_unreferenced_media**：清理 word/media 中未被任何 XML part 引用的图片
    及其关系（模板残留图、增量替换后废弃图），只删"关系＋文件"双侧都无引用的，
    header/footer/footnote 等 part 的引用一并纳入校验，不会误删。
@@ -296,7 +296,7 @@ def fix_layout_styles_doc(doc) -> list[str]:
     except KeyError:
         pass
 
-    # 附录小节标题去大纲（2026-10-06 裁定：A.1/B.1/C.1 等不进目录）：
+    # 附录小节标题去大纲（写 9 级＝正文文本；2026-10-06 裁定：A.1/B.1/C.1 等不进目录）：
     # 确保「MBA论文附录节标题」克隆样式存在，把一级节标题样式的 A.1 式段落换过去
     import copy as _copy
     import re as _re
@@ -309,8 +309,10 @@ def fix_layout_styles_doc(doc) -> list[str]:
         _pPr = new_el.find(qn("w:pPr"))
         if _pPr is not None:
             _ol = _pPr.find(qn("w:outlineLvl"))
-            if _ol is not None:
-                _pPr.remove(_ol)
+            if _ol is None:
+                _ol = OxmlElement("w:outlineLvl")
+                _pPr.append(_ol)
+            _ol.set(qn("w:val"), "9")  # 只删元素挡不住 basedOn heading 2 的 1 级继承
         doc.styles.element.append(new_el)
     if "MBA论文附录节标题" in {s.name for s in doc.styles}:
         n_app = 0

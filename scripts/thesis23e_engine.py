@@ -73,6 +73,19 @@ def _fullwidth_sep(text: str) -> str:
     return text
 
 
+def _fill_title_text(para, text: str):
+    """标题文字写入段落；`<br>` 渲染为段内换行（w:br，软换行，同段不进目录多条目）。
+
+    页眉侧由 `_set_header_footer` 统一去标记。
+    """
+    parts = text.split("<br>")
+    para.add_run(parts[0])
+    for seg in parts[1:]:
+        para.add_run().add_break()
+        para.add_run(seg)
+    return para
+
+
 class Thesis23EEngine(FormatEngine):
     """以 23E 模板为样式库的论文装配引擎。"""
 
@@ -163,7 +176,8 @@ class Thesis23EEngine(FormatEngine):
                 ol = OxmlElement("w:outlineLvl")
                 pPr.append(ol)
             ol.set(qn("w:val"), str(lvl))
-        # 克隆章标题 → 前置标题（去 outline，摘要/Abstract/目录不进 TOC）
+        # 克隆章标题 → 前置标题（写 9 级＝正文文本，摘要/Abstract/目录不进 TOC）。
+        # 只删 outlineLvl 元素挡不住 basedOn heading 1 的 0 级继承，必须显式写 9。
         src = self.doc.styles[STYLE["chapter"]]
         new_el = copy.deepcopy(src.element)
         new_el.set(qn("w:styleId"), "MBAFrontTitle")
@@ -171,10 +185,13 @@ class Thesis23EEngine(FormatEngine):
         pPr = new_el.find(qn("w:pPr"))
         if pPr is not None:
             ol = pPr.find(qn("w:outlineLvl"))
-            if ol is not None:
-                pPr.remove(ol)
+            if ol is None:
+                ol = OxmlElement("w:outlineLvl")
+                pPr.append(ol)
+            ol.set(qn("w:val"), "9")
         self.doc.styles.element.append(new_el)
-        # 克隆一级节标题 → 附录节标题（去 outline，附录 A.1/B.1/C.1 等不进 TOC）
+        # 克隆一级节标题 → 附录节标题（写 9 级＝正文文本，附录 A.1/B.1/C.1 等不进 TOC）。
+        # 只删 outlineLvl 元素挡不住 basedOn heading 2 的 1 级继承，必须显式写 9。
         src = self.doc.styles[STYLE["h1"]]
         new_el = copy.deepcopy(src.element)
         new_el.set(qn("w:styleId"), "MBAAppendixH1")
@@ -182,8 +199,10 @@ class Thesis23EEngine(FormatEngine):
         pPr = new_el.find(qn("w:pPr"))
         if pPr is not None:
             ol = pPr.find(qn("w:outlineLvl"))
-            if ol is not None:
-                pPr.remove(ol)
+            if ol is None:
+                ol = OxmlElement("w:outlineLvl")
+                pPr.append(ol)
+            ol.set(qn("w:val"), "9")
         self.doc.styles.element.append(new_el)
 
     # ── 节管理 ───────────────────────────────────────────────
@@ -224,7 +243,8 @@ class Thesis23EEngine(FormatEngine):
     def _add_unit_title(self, text: str, front: bool = False):
         text = _fullwidth_sep(text)
         style = STYLE["front_title"] if front else STYLE["chapter"]
-        para = self.doc.add_paragraph(text, style=style)
+        para = self.doc.add_paragraph(style=style)
+        _fill_title_text(para, text)
         para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         _set_paragraph_spacing(para, SPACING_CHAPTER_BEFORE, SPACING_CHAPTER_AFTER,
                                LINE_SPACING_SINGLE, WD_ALIGN_PARAGRAPH.CENTER)
@@ -245,8 +265,10 @@ class Thesis23EEngine(FormatEngine):
         run.add_picture(image_path, width=DocInches(width_inches))
 
     def add_display_math(self, latex: str, eq_num: str | None = None):
-        """独立行 LaTeX \\[...\\] → OMML（经 pandoc），居中；模板无 NJU Body 样式，改用 23E 正文样式。"""
+        """独立行 LaTeX \\[...\\] → OMML（经 pandoc），居中渲染；
+        有 \\tag{} 编号时右对齐同行放置（本模式模板无 NJU Body 样式，改用 23E 正文样式）。"""
         import copy
+        from docx.enum.text import WD_TAB_ALIGNMENT
         ommls = self._latex_to_omml(latex, display=True)
         if not ommls:
             self.add_body(f"[Equation: {latex}]")
@@ -256,6 +278,13 @@ class Thesis23EEngine(FormatEngine):
         _set_paragraph_spacing(para, Pt(6), Pt(6), LINE_SPACING_SINGLE, WD_ALIGN_PARAGRAPH.CENTER)
         for omml in ommls:
             para._element.append(copy.deepcopy(omml))
+        if eq_num:
+            # 右对齐制表位 ≈14.6 cm（A4 正文可用宽度），公式编号置行尾
+            para.paragraph_format.tab_stops.add_tab_stop(Pt(415), WD_TAB_ALIGNMENT.RIGHT)
+            tab_run = para.add_run()
+            tab_run._element.append(OxmlElement("w:tab"))
+            num_run = para.add_run(f"({eq_num})")
+            _set_font(num_run, FONT_BODY_CN, FONT_BODY_EN, SIZE_BODY)
 
     def _add_caption(self, el, style_name: str):
         """图表题照排：label 粗体居中，rest（附表说明）非粗体接续。"""
@@ -288,6 +317,7 @@ class Thesis23EEngine(FormatEngine):
 
     def _add_keywords(self, keywords: list[str], en: bool = False):
         para = self.doc.add_paragraph(style=STYLE["body"])
+        para.paragraph_format.first_line_indent = Pt(0)  # 关键词段顶格（2026-10-08 用户精调沉淀）
         if en:
             label, sep = "Key Words: ", ", "
         else:
@@ -300,10 +330,11 @@ class Thesis23EEngine(FormatEngine):
         return para
 
     def _add_reference_entry(self, text: str):
-        """参考文献条目照排（编号 [N] 由文献表自带，不重排）。"""
+        """参考文献条目照排（编号 [N] 由文献表自带，不重排）。
+        字体版式全由「MBA论文参考文献」样式承担，不写 run 级格式
+        （与成品 docx 现状一致；写 run 级会与样式定义打架）。"""
         para = self.doc.add_paragraph(style=STYLE["reference"])
-        run = para.add_run(text)
-        _set_font(run, FONT_BODY_CN, FONT_BODY_EN, SIZE_CAPTION)
+        para.add_run(text)
         return para
 
     def add_three_line_table_23e(self, headers: list[str], rows: list[list[str]]):
@@ -324,45 +355,53 @@ class Thesis23EEngine(FormatEngine):
                 self._landscape_on()
             elif self._landscape_open and t not in ("table", "source_note"):
                 self._landscape_off()   # 表后无注的情况兜底收节
-            if t == "chapter":
-                # 章/附录标题已在单元级渲染，正文中不应再出现；防御性按一级节处理
-                self._render_h1(el["text"])
-            elif t == "h1":
-                self._render_h1(el["text"])
-            elif t == "h2":
-                para = self.doc.add_paragraph(_fullwidth_sep(el["text"]), style=STYLE["h2"])
-            elif t == "h3":
-                para = self.doc.add_paragraph(_fullwidth_sep(el["text"]), style=STYLE["h3"])
-            elif t == "body":
-                self.add_body(el["text"])
-            elif t == "image":
-                self.add_image(el["src"])
-            elif t == "table":
-                self.add_three_line_table_23e(el["headers"], el["rows"])
-            elif t == "caption_fig":
-                self._add_caption(el, STYLE["fig_caption"])
-            elif t == "caption_tab":
-                self._add_caption(el, STYLE["tab_caption"])
-            elif t == "source_note":
-                self._add_source_note(el["text"])
-                if self._landscape_open:
-                    self._landscape_off()
-            elif t == "list_item":
-                self._add_list_item(el["text"])
-            elif t in ("keywords_cn", "keywords_en"):
-                self._add_keywords(el["keywords"], en=(t == "keywords_en"))
-            elif t == "blockquote":
-                self.add_body(el["text"])
-            elif t == "display_math":
-                self.add_display_math(el["text"], el.get("eq_num"))
-            # footnote 由 footnote_inserter.py 后处理，不在此渲染
+            self._render_one(el)
+            if t == "source_note" and self._landscape_open:
+                self._landscape_off()
         if self._landscape_open:
             self._landscape_off()       # 单元末尾兜底收节
+
+    def _render_one(self, el: dict):
+        """渲染单个元素（横排节状态机由 _render_elements 承担；
+        section_replacer 段落级增量替换直接复用本方法——增量模式不动分节）。"""
+        t = el["type"]
+        if t == "chapter":
+            # 章/附录标题已在单元级渲染，正文中不应再出现；防御性按一级节处理
+            self._render_h1(el["text"])
+        elif t == "h1":
+            self._render_h1(el["text"])
+        elif t == "h2":
+            para = _fill_title_text(self.doc.add_paragraph(style=STYLE["h2"]),
+                                    _fullwidth_sep(el["text"]))
+        elif t == "h3":
+            para = _fill_title_text(self.doc.add_paragraph(style=STYLE["h3"]),
+                                    _fullwidth_sep(el["text"]))
+        elif t == "body":
+            self.add_body(el["text"])
+        elif t == "image":
+            self.add_image(el["src"])
+        elif t == "table":
+            self.add_three_line_table_23e(el["headers"], el["rows"])
+        elif t == "caption_fig":
+            self._add_caption(el, STYLE["fig_caption"])
+        elif t == "caption_tab":
+            self._add_caption(el, STYLE["tab_caption"])
+        elif t == "source_note":
+            self._add_source_note(el["text"])
+        elif t == "list_item":
+            self._add_list_item(el["text"])
+        elif t in ("keywords_cn", "keywords_en"):
+            self._add_keywords(el["keywords"], en=(t == "keywords_en"))
+        elif t == "blockquote":
+            self.add_body(el["text"])
+        elif t == "display_math":
+            self.add_display_math(el["text"], el.get("eq_num"))
+        # footnote 论文正文未用，忽略
 
     def _render_h1(self, text: str):
         # 附录单元的小节标题（A.1/B.1/C.1 等）用去大纲样式，不进目录（2026-10-06 裁定）
         style = STYLE["appendix_h1"] if getattr(self, "_appendix", False) else STYLE["h1"]
-        self.doc.add_paragraph(_fullwidth_sep(text), style=style)
+        _fill_title_text(self.doc.add_paragraph(style=style), _fullwidth_sep(text))
 
     def render_unit(self, unit: dict):
         """渲染一个合并稿单元（节标题＝单元标题，页码规则分前置/正文）。"""

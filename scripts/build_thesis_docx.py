@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""整篇装配 CLI：带单元标记的合并稿 markdown → 学位论文 docx（23E 模板模式）。
+"""整篇装配 CLI：带 @unit 单元标记的合并稿 → 23E 模板 docx。
 
 用法：
     python3 build_thesis_docx.py <合并稿.md> \
-        --template <模板.docx> [--cover <封面模板.docx>] -o <输出.docx>
+        --template <23E模板.docx> [--cover <封面模板.docx>] -o <输出.docx>
 
 流程：parse_merged_thesis → Thesis23EEngine 逐单元渲染（Abstract 后插目录域）
       →（可选）merge_cover 前置封面节 → 输出校验摘要。
-合并稿单元约定见 SKILL.md「23E 模板模式」节。
 """
 
 from __future__ import annotations
@@ -87,7 +86,7 @@ def verify(output_path: str) -> None:
 
 def main():
     ap = argparse.ArgumentParser(description="合并稿 → 23E 模板 docx 整篇装配")
-    ap.add_argument("md", help="带 <!-- @unit:ID --> 单元标记的合并稿路径")
+    ap.add_argument("md", help="合并稿路径（@unit 单元标记）")
     ap.add_argument("--template", required=True, help="23E 模板 docx 路径")
     ap.add_argument("--cover", default=None, help="封面模板 docx 路径（可选）")
     ap.add_argument("-o", "--output", required=True, help="输出 docx 路径")

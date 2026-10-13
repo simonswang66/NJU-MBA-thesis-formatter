@@ -17,31 +17,16 @@ from __future__ import annotations
 import json
 import re
 import sys
-import unicodedata
 from difflib import SequenceMatcher
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from content_parser import parse_merged_thesis
-from section_replacer import SectionReplacer, _unit_title
+# norm 与差分替换器同一口径（2026-10-07 起由 section_replacer 统一定义）
+from section_replacer import SectionReplacer, _unit_title, norm
 
 _UNIT_TITLE_STYLES = {"MBA论文章标题", "MBA论文前置标题"}
-
-
-def norm(s: str) -> str:
-    """内容级归一化（两侧同施）：NFKC、去 md 粗体、<br>→空格、空白折叠、
-    非 ASCII 字符邻接空格抹除（用户在单元格内手工换行/断字的伪差异）、
-    去行首列表符。"""
-    s = unicodedata.normalize("NFKC", s)
-    s = s.replace("**", "")
-    s = re.sub(r"<br\s*/?>", " ", s, flags=re.IGNORECASE)
-    s = re.sub(r"\s*/\s*", "/", s)          # 斜杠两侧空格（用户格内换行伪差异）
-    s = re.sub(r"\s+", " ", s)
-    s = re.sub(r"\s+(?=[^\x00-\x7f])", "", s)
-    s = re.sub(r"(?<=[^\x00-\x7f])\s+", "", s)
-    s = re.sub(r"^•\s*", "", s)
-    return s.strip()
 
 
 # ── md 侧 ────────────────────────────────────────────────────
@@ -64,6 +49,10 @@ def md_unit_items(unit: dict) -> list[tuple[str, str]]:
             cells = list(el["headers"]) + [c for row in el["rows"] for c in row]
             cells = [c for c in cells if norm(c)]   # 空单元格不参与（见 docx 侧）
             items.append(("tbl", norm("|".join(cells))))
+        elif t == "display_math":
+            # 公式段：docx 侧为 OMML，按「公式存在＋编号文本」同键比对（latex 内容不可比）
+            items.append(("p", "math|" + norm(f"({el['eq_num']})"
+                                              if el.get("eq_num") else "")))
     return [(k, v) for k, v in items if v]
 
 
@@ -94,6 +83,10 @@ def docx_unit_items(replacer: SectionReplacer, unit: dict,
                 continue
             if sname.startswith("toc"):
                 continue
+            if el.findall(".//" + qn("m:oMath")):
+                # 公式段（OMML）：与 md 侧 display_math 同键（"公式存在＋编号文本"）
+                items.append(("p", "math|" + norm(p.text)))
+                continue
             txt = norm(p.text)
             if txt:
                 items.append(("p", txt))
@@ -118,9 +111,10 @@ def docx_unit_items(replacer: SectionReplacer, unit: dict,
 
 
 def load_layout(docx_path: str) -> dict:
-    f = Path(docx_path).parent / ".docx-layout.json"
-    if f.exists():
-        return json.loads(f.read_text(encoding="utf-8"))
+    for f in (Path(docx_path).parent / ".docx-layout.json",
+              Path(docx_path).parent / "scripts" / ".docx-layout.json"):
+        if f.exists():
+            return json.loads(f.read_text(encoding="utf-8"))
     return {}
 
 
@@ -134,7 +128,7 @@ def main():
     known_titles = {SectionReplacer._norm_title(_unit_title(u)) for u in units}
     replacer._known_titles = known_titles
 
-    total, frozen_hits = 0, 0
+    total, frozen_hits, split_hits = 0, 0, 0
     for unit in units:
         md_items = md_unit_items(unit)
         try:
@@ -146,9 +140,17 @@ def main():
                              [t for _, t in md_items],
                              [t for _, t, *_ in dx_items],
                              autojunk=False)
-        diffs, fdiffs = [], []
+        diffs, fdiffs, sdiffs = [], [], []
         for tag, i1, i2, j1, j2 in sm.get_opcodes():
             if tag == "equal":
+                continue
+            mspan, dspan = md_items[i1:i2], dx_items[j1:j2]
+            # 拼接一致＝docx 内手工拆行（附录问卷选项等），内容无差异，单列 ℹ️
+            if mspan and dspan and all(x[0] == "p" for x in mspan) and \
+                    all(x[0] == "p" for x in dspan) and \
+                    norm("".join(x[1] for x in mspan)) == \
+                    norm("".join(x[1] for x in dspan)):
+                sdiffs.append((mspan[0][1][:40], len(dspan)))
                 continue
             for k in range(max(i2 - i1, j2 - j1)):
                 m = md_items[i1 + k][1] if i1 + k < i2 else "〈无〉"
@@ -161,7 +163,7 @@ def main():
                     fdiffs.append((tagtbl, m, d))
                 else:
                     diffs.append((m, d))
-        if not diffs and not fdiffs:
+        if not diffs and not fdiffs and not sdiffs:
             print(f"[{unit['id']}] ✅ 一致（{len(md_items)} 项）")
             continue
         for m, d in diffs:
@@ -174,7 +176,10 @@ def main():
             print(f"[{unit['id']}] 🧊 冻结表 {tagtbl}（预期内差异）")
             print(f"  md  : {m[:100]}")
             print(f"  docx: {d[:100]}")
-    print(f"—— 真实差异 {total} 处；冻结表差异 {frozen_hits} 处 ——")
+        for head, n in sdiffs:
+            split_hits += n
+            print(f"[{unit['id']}] ℹ️ 手工拆行 {n} 段（内容一致）：{head}…")
+    print(f"—— 真实差异 {total} 处；冻结表差异 {frozen_hits} 处；手工拆行 {split_hits} 段（内容一致）——")
 
 
 def _layout_for_replacer(layout: dict) -> dict:
